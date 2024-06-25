@@ -178,7 +178,7 @@ for i in range(len(prompts)):
     print(f"Mu: {mu}, Std: {std}")
 
     # now a bit sharper gaussian fit, without outliers
-    OUTLIERS = int(0.01 * len(last_token_logits[i].flatten()))
+    OUTLIERS = int(0.08 * len(last_token_logits[i].flatten()))
     no_outliers_logits = sorted_last_token_logits[i][0][0][OUTLIERS:-OUTLIERS]
     mu, std = stats.norm.fit(
         no_outliers_logits.flatten()

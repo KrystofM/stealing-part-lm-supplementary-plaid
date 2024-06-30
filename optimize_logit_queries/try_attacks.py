@@ -80,8 +80,8 @@ def get_logit_vectors(data_source: str, n_trials: int, ntok: int) -> list[np.nda
 
 
 DATA_SOURCE = "llama-2-7b"
-NTOK = 50
-N_TRIALS = 10
+NTOK = 15
+N_TRIALS = 1
 ASSUMED_WIDTH = 40.0
 
 if DATA_SOURCE == "random_uniform":
@@ -92,7 +92,12 @@ if DATA_SOURCE == "random_uniform":
         base_top_token = np.argmax(reals[i])
         reals[i][base_top_token] = 1
 elif DATA_SOURCE == "random_normal":
-    reals = [np.random.normal(0.721457, 0.0497, size=NTOK) for _ in range(N_TRIALS)]
+    np.random.seed(1)
+    random.seed(1)
+    reals = [np.random.normal(0.6884241, 0.06653234, size=NTOK) for _ in range(N_TRIALS)]
+    for i in range(len(reals)):
+        base_top_token = np.argmax(reals[i])
+        reals[i][base_top_token] = 1
 else:
     reals = get_logit_vectors(DATA_SOURCE, N_TRIALS, NTOK)
     reals = [make_proper(real, assumed_width=ASSUMED_WIDTH) for real in reals]
@@ -108,13 +113,15 @@ if IS_SORTED:
 
 results = []
 # Run the strategies and plot the errors
-tolerance = 1e-6
-error_type = "l1_bounds"
+tolerance = 1e-5
+error_type = "weird"
 real = reals[0]
 for real in reals:
     # results.append(run_attack(real, tolerance, error_type, "mean_normal"))
     # results.append(run_attack(real, tolerance, error_type, "some_over_n", "iterate_constraints"))
-    results.append(run_attack(real, tolerance, error_type, "start_one_over_n_normal", "iterate_constraints"))
+    results.append(run_attack(real, tolerance, error_type, "everything_one_over_n_normal"))
+    results.append(run_attack(real, tolerance, error_type, "start_one_over_n_normal"))
+    # results.append(run_attack(real, tolerance, error_type, "start_one_over_n_skewnormal"))
     #results.append(run_attack(real, tolerance, error_type, "start_one_over_n_normal_V2", "iterate_constraints"))
     # results.append(
     #     run_attack(
@@ -125,8 +132,8 @@ for real in reals:
     #results.append(run_attack(real, tolerance, error_type, "every_one_over_n_normal"))
 
     # results.append(run_attack(real, tolerance, error_type, "start_one_over_n_with_prior"))
-    results.append(run_attack(real, tolerance, error_type, "start_over_n_uniform", "iterate_constraints"))
-    results.append(run_attack(real, tolerance, error_type, "simultaneous_binary_search", "iterate_constraints"))
+    results.append(run_attack(real, tolerance, error_type, "start_over_n_uniform"))
+    results.append(run_attack(real, tolerance, error_type, "simultaneous_binary_search"))
     # # results.append(
     # #     run_attack(real, tolerance, error_type, "start_one_over_n_merged", "iterate_constraints")
     # # )
@@ -286,7 +293,7 @@ def get_color(attack_name):
 
 # %%
 # plotting
-ERROR_TO_PLOT = "l1_bounds"
+ERROR_TO_PLOT = "weird"
 plt.figure(figsize=(17, 8))
 for result in results:
     label = result["label"]
@@ -303,10 +310,8 @@ plt.xlabel("Iterations")
 plt.ylabel("Error (log scale)")
 plt.title(f"Error Over Iterations for Different Strategies, {ERROR_TO_PLOT}")
 # legend out of the box
-# larger resolution
-plt.legend(
-    bbox_to_anchor=(1.05, 1), loc="upper left", borderaxespad=0.0, fontsize="small"
-)
+# put legend inside
+plt.legend(loc="upper right")
 plt.tight_layout()
 fig = plt.gcf()
 plt.show()

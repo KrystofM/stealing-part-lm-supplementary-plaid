@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-from scipy.stats import norm, truncnorm, uniform
+from scipy.stats import norm, truncnorm, uniform, skewnorm
 from scipy.optimize import minimize
 from scipy.optimize import dual_annealing
 from scipy.optimize import least_squares
@@ -16,8 +16,44 @@ def normal_binary_search(low, high, **kwargs):
     return bias
 
 
-def simultaneous_binary_search(low, high, **kwargs):
+def simultaneous_binary_search(low, high,constraints=None, real=None, **kwargs):
     # hyperrectangle relaxation    
+    NTOK = len(low)
+    # plot mid and use low and high as error bars
+    if kwargs.get('plot', False):        
+        mid = (low + high) / 2
+        order = np.argsort(mid)
+        srt_low = low[order]
+        srt_high = high[order]
+        srt_mid = mid[order]
+        print(srt_low.shape, srt_high.shape, srt_mid.shape)
+        plt.figure(figsize=(40, 8))  # Set the figure size to full screen
+        # Plotting the mid guesses with error bars representing the low and high boundaries
+        plt.errorbar(range(len(srt_mid)), srt_mid, yerr=[srt_mid - srt_low, srt_high - srt_mid], fmt='o', capsize=4, color='black', ecolor='black', capthick=2, elinewidth=2, label='Error bars show low and high boundaries')
+       #  plt.scatter(range(NTOK), srt_mid, color='blue', label='Guess', marker='o')
+        real = np.sort(real)
+        plt.scatter(range(len(real)), real, color='red', label='Logits', marker='^', zorder=10)
+        
+        plt.axhline(y=1, color='black', linestyle='--')  # Add a horizontal line at y=1
+        plt.ylim(0, 2)   
+        plt.legend()
+        plt.show()
+
+        bias = np.zeros(len(low))
+        q = len(srt_high - srt_low) - np.argmax((srt_high - srt_low)[::-1]) - 1
+        bias[q] = 1 - ((srt_high + srt_low) / 2)[q]
+        plt.figure(figsize=(40, 8))  # Set the figure size to full screen
+        # Plotting the mid guesses with bias adjustment and error bars representing the low and high boundaries
+        plt.errorbar(range(len(srt_mid)), srt_mid + bias, yerr=[srt_mid - srt_low, srt_high - srt_mid], fmt='o', capsize=4, color='black', ecolor='black', capthick=2, elinewidth=2, label='Error bars show low and high boundaries')
+        # plt.scatter(range(NTOK), srt_mid + bias, color='blue', label='Guess + Bias', marker='o')
+        real = np.sort(real) + bias
+        plt.scatter(range(len(real)), real, color='red', label='Logits + Bias', marker='^', zorder=10)
+        
+        plt.axhline(y=1, color='black', linestyle='--')  # Add a horizontal line at y=1
+        plt.ylim(0, 2)   
+        plt.legend()
+        plt.show()
+
     return 1 - (high + low) / 2
 
 
@@ -124,15 +160,41 @@ def mean_normal(low, high, constraints=None, real=None, error=None, **kwargs):
     print(r)
     print(real + r)
     return r
+
+def start_one_over_n_skewnormal(low, high, constraints=None, real=None, error=None, **kwargs):
+    # set s.t. the base token interval has prob 1/n of going to the top
+    # original interval is [low, high]
+    base_top_token, _ = constraints[0]
+    n = len(low)    
+    sigma = 0.06653234
+    mu = 0.6884241
+    skewness = 0.585519159
+
+    # r_l = np.zeros(n) + mu - 3*sigma
+    # l_c = np.maximum(r_l, low)
     
+    Phi_hi = skewnorm.cdf(high, a=skewness, scale=sigma, loc=mu - skewness * sigma)
+    Phi_li = skewnorm.cdf(low, a=skewness, scale=sigma, loc=mu - skewness * sigma)
+    
+    # Combine the CDF values as per the formula
+    combined_Phi = (1/n)**(1/(n-1)) * (Phi_hi - Phi_li) + Phi_li
+    
+    # Apply the inverse CDF (quantile function) with the same mean and standard deviation
+    inverse_Phi = skewnorm.ppf(combined_Phi, a=skewness, scale=sigma, loc=mu - skewness * sigma)
+    
+    # Calculate the final result
+    r = 1 - inverse_Phi
+    r[base_top_token] = 0    
+
+    return r
 
 def start_one_over_n_normal(low, high, constraints=None, real=None, error=None, **kwargs):
     # set s.t. the base token interval has prob 1/n of going to the top
     # original interval is [low, high]
     base_top_token, _ = constraints[0]
     n = len(low)    
-    sigma = 0.049797073
-    mu = 0.621457 
+    sigma = 0.06653234
+    mu = 0.6884241
 
     # r_l = np.zeros(n) + mu - 3*sigma
     # l_c = np.maximum(r_l, low)
@@ -151,7 +213,7 @@ def start_one_over_n_normal(low, high, constraints=None, real=None, error=None, 
     r[base_top_token] = 0
     NTOK = len(low)
     print(len(constraints))
-    if kwargs.get('plot', True) and 98 <= len(constraints) <= 101:        
+    if kwargs.get('plot', False) and 98 <= len(constraints) <= 101:        
         mid = (low + high) / 2
         order = np.argsort(mid)
         srt_low = low[order]

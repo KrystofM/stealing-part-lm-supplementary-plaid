@@ -17,7 +17,8 @@ from askers.simple import (
     normal_perfect,
     start_one_over_n_normal,
     mean_normal,
-    start_over_n_uniform
+    start_over_n_uniform,
+    start_one_over_n_skewnormal
 )
 from askers.simple_more import (
     every_one_over_n_uniform,
@@ -33,6 +34,7 @@ from askers.simple_more import (
 )
 from askers.bias import bias_unexplored, bias_uncertain, query_mixed
 from askers.distances import least_squares_all
+from askers.shiftNN import everything_one_over_n_normal
 
 
 
@@ -115,7 +117,9 @@ query_strategies = {
     "start_one_over_n_normal_V2": start_one_over_n_normal_V2,
     "some_over_n": some_over_n,
     "mean_normal": mean_normal,
-    "start_over_n_uniform": start_over_n_uniform
+    "start_over_n_uniform": start_over_n_uniform,
+    "start_one_over_n_skewnormal": start_one_over_n_skewnormal,
+    "everything_one_over_n_normal": everything_one_over_n_normal
 }
 
 bounds_computers = {
@@ -151,7 +155,7 @@ def run_attack(
         bounds_computer in bounds_computers
     ), f"Bounds computer must be one of {list(bounds_computers.keys())}"
 
-    label = f"{query_strategy} {bounds_computer}"
+    label = f"{query_strategy}" # {bounds_computer}"
     label += f' {kwargs["method"]}' if "method" in kwargs else ""
     label += f' alpha={format_float(kwargs["alpha"])}' if "alpha" in kwargs else ""
     label += f' beta={format_float(kwargs["beta"])}' if "beta" in kwargs else ""
@@ -215,7 +219,6 @@ def run_attack(
 
     # plot the frequency of sampling each token
     # plt.hist([x[0] for x in constraints], bins=NTOK)
-    # plt.title(f"Sampling frequency for {label}")
     # plt.show()
 
     # # plot the change of frequency bins over time

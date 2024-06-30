@@ -10,9 +10,14 @@ data = np.load(
                 allow_pickle=True,
             )
 
-average_real = np.mean(data, axis=0)
-## assumed width kinda random??
-average_real = make_proper(average_real, assumed_width=40)
+print(data.shape)
+# make each vector in data proper
+data = [make_proper(d, assumed_width=40) for d in data]
+
+# make data from 2D to be 1D by contacenating
+average_real = np.concatenate(data)
+
+print(average_real.shape)
 
 # Histogram and Gaussian fit
 plt.hist(average_real, bins=100, density=True)
@@ -25,9 +30,10 @@ plt.plot(x, p, "k", linewidth=2, label="Gaussian fit")
 skewness = stats.skew(average_real)
 print(f"Skewness: {skewness}")
 # skewed normal distribution
-p_skewed = stats.skewnorm.pdf(x, a=1, scale=sigma, loc=(mu - 0.05))
+p_skewed = stats.skewnorm.pdf(x, a=skewness, scale=sigma, loc=mu - skewness * sigma)
 plt.plot(x, p_skewed, "b", linewidth=2, label="Skewed Gaussian fit")
-
+plt.legend()
+plt.show()
 # now a bit sharper gaussian fit, without outliers
 # Removing outliers for a sharper Gaussian fit
 OUTLIERS = int(0.01 * len(average_real))
